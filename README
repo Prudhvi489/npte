@@ -1,0 +1,41 @@
+# NPTE PROJECT
+- [NPTE_Introduction]
+    The NPTE is an application-based test. Having a strong base of the core concepts is of utmost importance. Statistics show that you can significantly improve your results by testing multiple times after reading the material.
+
+    So let us help you pace yourself, monitor your progress, determine the areas that you might need to focus more on and make this a successful journey in becoming a practicing Physical Therapist/Assistant.
+
+
+## Table of Contents
+- [Introduction]
+    Welcome to [NPTE]! This project is designed to [The NPTE is an application-based test. Having a strong base of the core concepts is of utmost importance. Statistics show that you can significantly improve your results by testing multiple times after reading the material.]. this project aims to provide [Gaining Knowledge Improving IQ Skills].
+- [Features]
+ ->This Projects having Blogs,Carts,Exams,Features,Groups,Packages,Payment Options,Questions,Slides,Subjects,Topics,Transactions,Users,Testimonials
+
+
+- ### Technologies Used 
+->NODE JS
+->POSTGRES SQL DATABASE
+->SEQUALIZE ORM 
+
+
+### Getting Started
+Before you begin, make sure you have [prerequisites] installed. Follow these steps to get [NPTE] up and running:
+1. [Step 1]: I provided pacakage.json their having packages once check it.
+2. [Step 2]: Just Run in teriminal which is 
+->npm install.
+3. [Step 3]: Make your Database connections as your system required just i mentioning sample go on
+-> .env file check it.
+4. [Step 4]: 
+### Here it is show as like you see 
+DB_USERNAME= ***** ->Your PG Database UserName
+DB_PASSWORD= ***** ->Your PG Database Password
+DB_NAME= ***** ->Your PG Database Name
+DB_HOST= ***** ->Your Database Host Name
+DB_DIALECT= ***** ->Your Database Dialect
+5. [Step 5]: After successfully project setup is ready just start with 
+->nodemon app.js
+6. Here we can find global middlewares like httpStatusCodes,responseHandler and routes middlewares
+    1. responseHandler ==> It's deals with responses that exists in application
+    2. httpStatusCodes ==> It's deals with httpStatusCodes that exists in application
+    3. routes ==> It's deals with routes that exists in application
+    4. authMiddleware ==> It's deals with authentications JWT token generation that exists in application
