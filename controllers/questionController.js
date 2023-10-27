@@ -5,7 +5,7 @@ const Subject = require('../models/Subject');
 const Group = require('../models/Group'); // Import Group model
 const responseHandler = require('../utils/responseHandler');
 const Exam = require('../models/Exam');
-
+const { Sequelize } = require('sequelize');
 async function addQuestion(req, res) {
   try {
     const {
@@ -238,7 +238,6 @@ async function getQuestionsByGroupName(req, res) {
 async function getQuestionsByExamId(req, res) {
   try {
     const { examId } = req.params;
-
     // Query the database to find questions and include the associated exam
     const questions = await Question.findAll({
       where: { examId },
@@ -247,7 +246,6 @@ async function getQuestionsByExamId(req, res) {
         attributes: ['name', 'examDuration'], // Specify the attributes you want
       },
     });
-
     if (!questions || questions.length === 0) {
       return responseHandler.notFound(res, 'No questions found for the specified examId');
     }
@@ -266,7 +264,80 @@ async function getQuestionsByExamId(req, res) {
       questions, // You can include the questions as well
     });
   } catch (error) {
-    console.error(error);
+    // console.error(error,"error");
+    responseHandler.internalServerError(res, 'An error occurred');
+  }
+}
+
+/**Valdating the exam results
+ * @param{object}-req The request object contains exam_data(array of object),exam_id,total_questions
+ * exam_data-object contains question_id,answer
+ */
+async function getexamresults(req,res){
+  try{
+    const UserId = req.user.id;
+    const {exam_name,exam_id,exam_data,total_questions}=req.body;
+    // Getting total marks using examid from quesitons table
+    const questions = await Question.findAll({
+      where: {examId:exam_id },
+      attributes: [
+        [Sequelize.fn('SUM', Sequelize.col('marks')), 'totalMarks'],
+      ],
+    })
+    // Getting passing score from exams table
+    const passing_percentage=await Exam.findOne({
+      where:{id:exam_id},
+      attributes: ['passingPercentage']
+    })
+  //  Retrieving all questions related to exam_id
+  const all_questions = await Question.findAll({
+    where: {examId:exam_id },
+    include: {
+      model: Exam,
+      attributes: ['name', 'examDuration'], 
+    },
+  });
+  let updated_questions = all_questions.map((question) => {
+    const foundAnswer = exam_data.find((data) => data.questionid === question.id);
+    if (foundAnswer) {
+      return {
+        ...question.dataValues,
+        your_answer: foundAnswer.answer,
+      };
+    } else {
+      return question.dataValues;
+    }
+  });
+    let passing_score=passing_percentage?.dataValues?.passingPercentage;
+    let total_marks=questions[0].get('totalMarks');
+    let gained_marks=0;
+    let correct=0;
+    let accuracy=0;
+    let incorrect
+    for (let i=0;i<exam_data.length;i++){
+      let question_id=exam_data[i]?.questionid;
+    const question= await Question.findOne({
+      where: { id: question_id }
+    })
+
+    if(exam_data[i]?.answer===question?.dataValues?.correctOption){
+      correct+=1;
+      gained_marks+=question?.dataValues?.marks;
+    }
+  }
+  
+  accuracy=(gained_marks/total_marks)*100;
+  incorrect=total_questions-correct;
+  responseHandler.success(res, 'Exam validated successfully', {
+    accuracy,
+    passing_score,
+    correct,
+    incorrect,
+    updated_questions
+  });
+  }
+  catch(err){
+    console.log(err);
     responseHandler.internalServerError(res, 'An error occurred');
   }
 }
@@ -282,7 +353,8 @@ module.exports = {
   getQuestionById,
   getQuestionsByPackage,
   getQuestionsByGroupName,
-  getQuestionsByExamId
+  getQuestionsByExamId,
+  getexamresults
 };
 
 
