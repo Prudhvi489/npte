@@ -1,11 +1,12 @@
-const { Op } = require('sequelize');
-const Question = require('../models/Question');
-const Topic = require('../models/Topic');
-const Subject = require('../models/Subject');
-const Group = require('../models/Group'); // Import Group model
-const responseHandler = require('../utils/responseHandler');
-const Exam = require('../models/Exam');
-const { Sequelize } = require('sequelize');
+const { Op } = require("sequelize");
+const Question = require("../models/Question");
+const Topic = require("../models/Topic");
+const Subject = require("../models/Subject");
+const Group = require("../models/Group"); // Import Group model
+const responseHandler = require("../utils/responseHandler");
+const Exam = require("../models/Exam");
+const Studentdashboard = require("../models/Studentdashboard");
+const { Sequelize } = require("sequelize");
 async function addQuestion(req, res) {
   try {
     const {
@@ -21,14 +22,14 @@ async function addQuestion(req, res) {
 
     // Validate that correctOption is within the range of available options
     if (correctOption < 0 || correctOption >= options.length) {
-      return responseHandler.badRequest(res, 'Invalid correctOption');
+      return responseHandler.badRequest(res, "Invalid correctOption");
     }
 
     // Find the exam by name to get the examId
     const exam = await Exam.findOne({ where: { name: examName } });
 
     if (!exam) {
-      return responseHandler.badRequest(res, 'Exam not found');
+      return responseHandler.badRequest(res, "Exam not found");
     }
 
     // Create the question with the correct answer and associated examId
@@ -43,73 +44,72 @@ async function addQuestion(req, res) {
       examId: exam.id, // Associate the question with the exam by using its examId
     });
 
-    responseHandler.created(res, 'Question added successfully', { question });
+    responseHandler.created(res, "Question added successfully", { question });
   } catch (error) {
     console.error(error);
-    responseHandler.internalServerError(res, 'An error occurred');
+    responseHandler.internalServerError(res, "An error occurred");
   }
 }
-
 
 async function editQuestion(req, res) {
-try {
-  const { id } = req.query;
+  try {
+    const { id } = req.query;
 
-  const {
-    groupName,
-    topicName,
-    subjectName,
-    questionText,
-    options,
-    correctOption,
-    marks,
-  } = req.body;
+    const {
+      groupName,
+      topicName,
+      subjectName,
+      questionText,
+      options,
+      correctOption,
+      marks,
+    } = req.body;
 
-  const existingTopic = await Topic.findOne({
-    where: { topicName },
-  });
+    const existingTopic = await Topic.findOne({
+      where: { topicName },
+    });
 
-  if (!existingTopic) {
-    return responseHandler.badRequest(res, 'Topic is not available');
+    if (!existingTopic) {
+      return responseHandler.badRequest(res, "Topic is not available");
+    }
+
+    const existingSubject = await Subject.findOne({
+      where: { subjectName },
+    });
+
+    if (!existingSubject) {
+      return responseHandler.badRequest(res, "Subject is not available");
+    }
+
+    const existingGroup = await Group.findOne({
+      where: { groupName },
+    });
+
+    if (!existingGroup) {
+      return responseHandler.badRequest(res, "Group is not available");
+    }
+
+    const question = await Question.findByPk(id);
+
+    if (!question) {
+      return responseHandler.notFound(res, "Question not found");
+    }
+
+    question.groupName = groupName;
+    question.topicName = topicName;
+    question.subjectName = subjectName;
+    question.questionText = questionText;
+    question.options = options;
+    question.correctOption = correctOption;
+    question.marks = marks;
+
+    await question.save();
+
+    responseHandler.success(res, "Question updated successfully", { question });
+  } catch (error) {
+    console.error(error);
+    responseHandler.internalServerError(res, "An error occurred");
   }
-
-  const existingSubject = await Subject.findOne({
-    where: { subjectName },
-  });
-
-  if (!existingSubject) {
-    return responseHandler.badRequest(res, 'Subject is not available');
-  }
-
-  const existingGroup = await Group.findOne({
-    where: { groupName },
-  });
-
-  if (!existingGroup) {
-    return responseHandler.badRequest(res, 'Group is not available');
-  }
-
-  const question = await Question.findByPk(id);
-
-  if (!question) {
-    return responseHandler.notFound(res, 'Question not found');
-  }
-
-  question.groupName = groupName;
-  question.topicName = topicName;
-  question.subjectName = subjectName;
-  question.questionText = questionText;
-  question.options = options;
-  question.correctOption = correctOption;
-  question.marks = marks;
-  
-  await question.save();
-
-  responseHandler.success(res, 'Question updated successfully', { question });
-} catch (error) {
-  console.error(error);
-  responseHandler.internalServerError(res, 'An error occurred');
-}
 }
 
 async function deleteQuestion(req, res) {
@@ -118,64 +118,72 @@ async function deleteQuestion(req, res) {
 
     const question = await Question.findByPk(id);
     if (!question) {
-      return responseHandler.notFound(res, 'Question not found');
+      return responseHandler.notFound(res, "Question not found");
     }
 
     await question.destroy();
 
-    responseHandler.success(res, 'Question deleted successfully');
+    responseHandler.success(res, "Question deleted successfully");
   } catch (error) {
     console.error(error);
-    responseHandler.internalServerError(res, 'An error occurred');
+    responseHandler.internalServerError(res, "An error occurred");
   }
 }
 
 async function search(req, res) {
   try {
-      const { query, subject, topic, group } = req.query;
-  
-      const whereCondition = {
-      [Op.or]: [
-          { subjectName: { [Op.iLike]: `%${query}%` } },
-          { topicName: { [Op.iLike]: `%${query}%` } },
-          { questionText: { [Op.iLike]: `%${query}%` } },
-      ],
-      };
-  
-      if (subject) {
-      whereCondition.subjectName = subject;
-      }
-  
-      if (topic) {
-      whereCondition.topicName = topic;
-      }
-  
-      if (group) {
-      whereCondition.groupName = group;
-      }
-  
-      const searchResults = await Question.findAll({
-      where: whereCondition,
-      });
-  
-      responseHandler.success(res, 'Search results', { results: searchResults });
-  } catch (error) {
-      console.error(error);
-      responseHandler.internalServerError(res, 'An error occurred');
-  }
-  }
-    
-async function getAllQuestions(req, res) {
-    try {
-      const questions = await Question.findAll({
+    const { query, subject, topic, group } = req.query;
 
-        attributes: ['id', 'questionText', 'subjectName', 'topicName', 'groupName','options','correctOption','marks'],
-      });
-      responseHandler.success(res, 'All questions', { questions });
-    } catch (error) {
-      console.error(error);
-      responseHandler.internalServerError(res, 'An error occurred');
+    const whereCondition = {
+      [Op.or]: [
+        { subjectName: { [Op.iLike]: `%${query}%` } },
+        { topicName: { [Op.iLike]: `%${query}%` } },
+        { questionText: { [Op.iLike]: `%${query}%` } },
+      ],
+    };
+
+    if (subject) {
+      whereCondition.subjectName = subject;
     }
+
+    if (topic) {
+      whereCondition.topicName = topic;
+    }
+
+    if (group) {
+      whereCondition.groupName = group;
+    }
+
+    const searchResults = await Question.findAll({
+      where: whereCondition,
+    });
+
+    responseHandler.success(res, "Search results", { results: searchResults });
+  } catch (error) {
+    console.error(error);
+    responseHandler.internalServerError(res, "An error occurred");
+  }
+}
+
+async function getAllQuestions(req, res) {
+  try {
+    const questions = await Question.findAll({
+      attributes: [
+        "id",
+        "questionText",
+        "subjectName",
+        "topicName",
+        "groupName",
+        "options",
+        "correctOption",
+        "marks",
+      ],
+    });
+    responseHandler.success(res, "All questions", { questions });
+  } catch (error) {
+    console.error(error);
+    responseHandler.internalServerError(res, "An error occurred");
+  }
 }
 async function getQuestionById(req, res) {
   try {
@@ -184,13 +192,13 @@ async function getQuestionById(req, res) {
     const question = await Question.findByPk(id);
 
     if (!question) {
-      return responseHandler.notFound(res, 'Question not found');
+      return responseHandler.notFound(res, "Question not found");
     }
 
-    responseHandler.success(res, 'Question found', { question });
+    responseHandler.success(res, "Question found", { question });
   } catch (error) {
     console.error(error);
-    responseHandler.internalServerError(res, 'An error occurred');
+    responseHandler.internalServerError(res, "An error occurred");
   }
 }
 async function getQuestionsByPackage(req, res) {
@@ -199,42 +207,52 @@ async function getQuestionsByPackage(req, res) {
     // Fetch questions based on the package name
     const questions = await Question.findAll({
       where: { groupName }, // Adjust the field name as per your database schema
-      attributes: ['id', 'questionText', 'options', 'correctOption', 'subjectName'], // Add more attributes as needed
+      attributes: [
+        "id",
+        "questionText",
+        "options",
+        "correctOption",
+        "subjectName",
+      ], // Add more attributes as needed
     });
 
-    responseHandler.success(res, 'Questions retrieved successfully', { questions });
+    responseHandler.success(res, "Questions retrieved successfully", {
+      questions,
+    });
   } catch (error) {
     console.error(error);
-    responseHandler.internalServerError(res, 'An error occurred');
+    responseHandler.internalServerError(res, "An error occurred");
   }
 }
 
 async function getQuestionsByGroupName(req, res) {
   try {
-    const { groupName } = req.params; 
+    const { groupName } = req.params;
 
     // Query the database to find questions with the specified groupName
     const questions = await Question.findAll({
       where: {
         groupName: {
-          [Op.like]: `%${groupName}%`
-        }
+          [Op.like]: `%${groupName}%`,
+        },
       },
     });
 
     if (!questions || questions.length === 0) {
-      return responseHandler.notFound(res, 'No questions found for the specified group name');
+      return responseHandler.notFound(
+        res,
+        "No questions found for the specified group name"
+      );
     }
 
-    responseHandler.success(res, 'Questions retrieved successfully', { questions });
+    responseHandler.success(res, "Questions retrieved successfully", {
+      questions,
+    });
   } catch (error) {
     console.error(error);
-    responseHandler.internalServerError(res, 'An error occurred');
+    responseHandler.internalServerError(res, "An error occurred");
   }
 }
-  
-
-
 async function getQuestionsByExamId(req, res) {
   try {
     const { examId } = req.params;
@@ -243,11 +261,14 @@ async function getQuestionsByExamId(req, res) {
       where: { examId },
       include: {
         model: Exam, // Include the Exam model
-        attributes: ['name', 'examDuration'], // Specify the attributes you want
+        attributes: ["name", "examDuration"], // Specify the attributes you want
       },
     });
     if (!questions || questions.length === 0) {
-      return responseHandler.notFound(res, 'No questions found for the specified examId');
+      return responseHandler.notFound(
+        res,
+        "No questions found for the specified examId"
+      );
     }
 
     // Calculate the count of questions
@@ -257,7 +278,7 @@ async function getQuestionsByExamId(req, res) {
     const examName = questions[0].Exam.name;
     const examDuration = questions[0].Exam.examDuration;
 
-    responseHandler.success(res, 'Questions retrieved successfully', {
+    responseHandler.success(res, "Questions retrieved successfully", {
       examName,
       examDuration,
       questionCount,
@@ -265,7 +286,7 @@ async function getQuestionsByExamId(req, res) {
     });
   } catch (error) {
     // console.error(error,"error");
-    responseHandler.internalServerError(res, 'An error occurred');
+    responseHandler.internalServerError(res, "An error occurred");
   }
 }
 
@@ -273,76 +294,173 @@ async function getQuestionsByExamId(req, res) {
  * @param{object}-req The request object contains exam_data(array of object),exam_id,total_questions
  * exam_data-object contains question_id,answer
  */
-async function getexamresults(req,res){
-  try{
-    const UserId = req.user.id;
-    const {exam_name,exam_id,exam_data,total_questions}=req.body;
+async function getexamresults(req, res) {
+  try {
+    // const UserId = req.user.id;
+    const { user_id, exam_name, exam_id, exam_data, total_questions } =
+      req.body;
     // Getting total marks using examid from quesitons table
     const questions = await Question.findAll({
-      where: {examId:exam_id },
-      attributes: [
-        [Sequelize.fn('SUM', Sequelize.col('marks')), 'totalMarks'],
-      ],
-    })
+      where: { examId: exam_id },
+      attributes: [[Sequelize.fn("SUM", Sequelize.col("marks")), "totalMarks"]],
+    });
     // Getting passing score from exams table
-    const passing_percentage=await Exam.findOne({
-      where:{id:exam_id},
-      attributes: ['passingPercentage']
-    })
-  //  Retrieving all questions related to exam_id
-  const all_questions = await Question.findAll({
-    where: {examId:exam_id },
-    include: {
-      model: Exam,
-      attributes: ['name', 'examDuration'], 
-    },
-  });
-  let updated_questions = all_questions.map((question) => {
-    const foundAnswer = exam_data.find((data) => data.questionid === question.id);
-    if (foundAnswer) {
-      return {
-        ...question.dataValues,
-        your_answer: foundAnswer.answer,
-      };
-    } else {
-      return question.dataValues;
-    }
-  });
-    let passing_score=passing_percentage?.dataValues?.passingPercentage;
-    let total_marks=questions[0].get('totalMarks');
-    let gained_marks=0;
-    let correct=0;
-    let accuracy=0;
-    let incorrect
-    for (let i=0;i<exam_data.length;i++){
-      let question_id=exam_data[i]?.questionid;
-    const question= await Question.findOne({
-      where: { id: question_id }
-    })
+    const passing_percentage = await Exam.findOne({
+      where: { id: exam_id },
+      attributes: ["passingPercentage"],
+    });
+    //  Retrieving all questions related to exam_id
+    const all_questions = await Question.findAll({
+      where: { examId: exam_id },
+      include: {
+        model: Exam,
+        attributes: ["name", "examDuration"],
+      },
+    });
+    let updated_questions = all_questions.map((question) => {
+      const foundAnswer = exam_data.find(
+        (data) => data.questionid === question.id
+      );
+      if (foundAnswer) {
+        return {
+          ...question.dataValues,
+          your_answer: foundAnswer.answer,
+        };
+      } else {
+        return question.dataValues;
+      }
+    });
+    let passing_score = passing_percentage?.dataValues?.passingPercentage;
+    let total_marks = questions[0].get("totalMarks");
+    let gained_marks = 0;
+    let correct = 0;
+    let accuracy = 0;
+    let incorrect;
+    for (let i = 0; i < exam_data.length; i++) {
+      let question_id = exam_data[i]?.questionid;
+      const question = await Question.findOne({
+        where: { id: question_id },
+      });
 
-    if(exam_data[i]?.answer===question?.dataValues?.correctOption){
-      correct+=1;
-      gained_marks+=question?.dataValues?.marks;
+      if (exam_data[i]?.answer === question?.dataValues?.correctOption) {
+        correct += 1;
+        gained_marks += question?.dataValues?.marks;
+      }
     }
-  }
-  
-  accuracy=(gained_marks/total_marks)*100;
-  incorrect=total_questions-correct;
-  responseHandler.success(res, 'Exam validated successfully', {
-    accuracy,
-    passing_score,
-    correct,
-    incorrect,
-    updated_questions
-  });
-  }
-  catch(err){
+
+    accuracy = (gained_marks / total_marks) * 100;
+    incorrect = total_questions - correct;
+    const dataToInsert = {
+      examName: exam_name,
+      attemptDate: new Date(),
+      totalMarks: total_marks,
+      scoredMarks: gained_marks,
+      percentage: accuracy,
+      result: accuracy >= passing_score ? "Passed" : "Failed",
+      yourAnswers: exam_data,
+      examId: exam_id,
+      userId: user_id,
+      correct: correct,
+      inCorrect: incorrect,
+    };
+    // Inserting the record into the table
+    await Studentdashboard.create(dataToInsert);
+
+    responseHandler.success(res, "Exam validated successfully", {
+      accuracy,
+      passing_score,
+      correct,
+      incorrect,
+      updated_questions,
+    });
+  } catch (err) {
     console.log(err);
-    responseHandler.internalServerError(res, 'An error occurred');
+    responseHandler.internalServerError(res, "An error occurred");
   }
 }
+/**
+ * @param {id}-getting userid in query params
+ */
+async function getresultsdashboard(req, res) {
+  try {
+    const { id } = req.params;
+    const dashboard_results = await Studentdashboard.findAll({
+      where: { userId: id },
+      attributes: [
+        "id",
+        "examName",
+        "totalMarks",
+        "percentage",
+        "scoredMarks",
+        "attemptDate",
+        "result",
+        "examId",
+      ],
+    });
 
+    responseHandler.success(
+      res,
+      "Dashboard data fetched succesfully",
+      dashboard_results
+    );
+  } catch (err) {
+    console.log(err);
+    responseHandler.internalServerError(res, "An error occurred");
+  }
+}
+/**
+ * function to get the each exam detailed data
+ * @param {object}-request object contains userid,examid
+ */
+async function geteach_examdata(req, res) {
+  try {
+    const { dashboardid } = req.params;
+    const each_record = await Studentdashboard.findByPk(dashboardid);
+    let exam_id = each_record?.dataValues?.examId;
+    let exam_data = each_record?.dataValues?.yourAnswers;
+    // Getting passing score from exams table
+    const passing_percentage = await Exam.findOne({
+      where: { id: exam_id },
+      attributes: ["passingPercentage"],
+    });
+    let passing_score = passing_percentage?.dataValues?.passingPercentage;
 
+    //  Retrieving all questions related to exam_id
+    const all_questions = await Question.findAll({
+      where: { examId: exam_id },
+      include: {
+        model: Exam,
+        attributes: ["name", "examDuration"],
+      },
+    });
+    let updated_questions = all_questions.map((question) => {
+      const foundAnswer = exam_data.find(
+        (data) => data.questionid === question.id
+      );
+      if (foundAnswer) {
+        return {
+          ...question.dataValues,
+          your_answer: foundAnswer.answer,
+        };
+      } else {
+        return question.dataValues;
+      }
+    });
+    let returning_data={
+      "accuracy":each_record?.dataValues?.scoredMarks,
+      passing_score,
+      "correct":each_record?.dataValues?.correct,
+      "incorrect":each_record?.dataValues?.inCorrect,
+      updated_questions
+    }
+    responseHandler.success(
+      res,
+      "Exam data fetched successfully",returning_data);
+  } catch (err) {
+    console.log(err);
+    responseHandler.internalServerError(res, "An error occurred");
+  }
+}
 
 module.exports = {
   addQuestion,
@@ -354,7 +472,7 @@ module.exports = {
   getQuestionsByPackage,
   getQuestionsByGroupName,
   getQuestionsByExamId,
-  getexamresults
+  getexamresults,
+  getresultsdashboard,
+  geteach_examdata,
 };
-
-

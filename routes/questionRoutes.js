@@ -11,7 +11,9 @@ router.get('/getQuestionById/:id', questionController.getQuestionById);
 router.post('/getQuestionsByPackage/:packageName', questionController.getQuestionsByPackage);
 router.get('/getQuestionsByGroupName/:groupName', questionController.getQuestionsByGroupName);
 router.get('/questionsByExamId/:examId', questionController.getQuestionsByExamId);
-router.post('/validateexam',authenticateToken,questionController.getexamresults)//authenticateToken
+router.post('/validateexam',questionController.getexamresults)//authenticateToken
+router.get('/getresultsdashboard/:id',questionController.getresultsdashboard);
+router.get('/getexamdata/:dashboardid',questionController.geteach_examdata)
 
 
 
